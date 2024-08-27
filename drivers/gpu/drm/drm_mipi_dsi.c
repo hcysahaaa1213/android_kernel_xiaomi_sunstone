@@ -1054,7 +1054,10 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 					u16 brightness)
 {
-	u8 payload[2] = { brightness & 0xff, brightness >> 8 };
+	/* BSP.LCM - 2022.6.3 - modify to bring up brightness */
+	u8 payload[2] = { brightness >> 8, brightness & 0xff };
+	/* end modify*/
+	//u8 payload[2] = { brightness & 0xff, brightness >> 8 };
 	ssize_t err;
 
 	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
@@ -1103,7 +1106,10 @@ EXPORT_SYMBOL(mipi_dsi_dcs_get_display_brightness);
 int mipi_dsi_dcs_set_display_brightness_large(struct mipi_dsi_device *dsi,
 					     u16 brightness)
 {
+	/* BSP.LCM - 2022.6.3 - modify to bring up brightness */
 	u8 payload[2] = { brightness >> 8, brightness & 0xff };
+	/* end modify*/
+	//u8 payload[2] = { brightness >> 8, brightness & 0xff };
 	ssize_t err;
 
 	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,

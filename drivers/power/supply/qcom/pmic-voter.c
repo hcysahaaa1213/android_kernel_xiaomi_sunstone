@@ -20,7 +20,7 @@ static DEFINE_SPINLOCK(votable_list_slock);
 static LIST_HEAD(votable_list);
 
 static struct dentry *debug_root;
-
+/*
 struct client_vote {
 	bool	enabled;
 	int	value;
@@ -51,7 +51,7 @@ struct votable {
 	bool			force_active;
 	struct dentry		*force_active_ent;
 };
-
+*/
 /**
  * vote_set_any()
  * @votable:	votable object
@@ -482,15 +482,17 @@ int vote(struct votable *votable, const char *client_str, bool enabled, int val)
 			|| (effective_result != votable->effective_result)) {
 		votable->effective_client_id = effective_id;
 		votable->effective_result = effective_result;
-		pr_debug("%s: effective vote is now %d voted by %s,%d\n",
+		pr_err("%s: effective vote is now %d voted by %s,%d\n",
 			votable->name, effective_result,
 			get_client_str(votable, effective_id),
 			effective_id);
 		if (votable->callback && !votable->force_active
-				&& (votable->override_result == -EINVAL))
-			rc = votable->callback(votable, votable->data,
-					effective_result,
-					get_client_str(votable, effective_id));
+				&& (votable->override_result == -EINVAL)) {
+				rc = votable->callback(votable, votable->data,
+						effective_result,
+						get_client_str(votable, effective_id));
+				pr_err("[%s]line = %d:vote \n", __FUNCTION__, __LINE__);
+		}
 	}
 
 	votable->voted_on = true;

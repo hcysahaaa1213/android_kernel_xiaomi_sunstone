@@ -182,6 +182,12 @@ static inline void pm_wakeup_dev_event(struct device *dev, unsigned int msec,
 				       bool hard) {}
 
 #endif /* !CONFIG_PM_SLEEP */
+#ifdef CONFIG_BUILD_QGKI
+static inline void wakeup_source_init(struct wakeup_source *ws,const char *name)
+{
+	wakeup_source_add(ws);
+}
+#endif
 
 static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 {

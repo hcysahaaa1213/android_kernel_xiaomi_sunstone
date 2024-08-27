@@ -430,8 +430,13 @@ static void msm_restart_prepare(const char *cmd)
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	else
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
-
+#ifdef CONFIG_HQ_QGKI
+	if (in_panic) {
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_PANIC);
+	} else if (cmd != NULL) {
+#else
 	if (cmd != NULL) {
+#endif
 		if (!strncmp(cmd, "bootloader", 10)) {
 			reason = PON_RESTART_REASON_BOOTLOADER;
 			__raw_writel(0x77665500, restart_reason);
@@ -461,6 +466,9 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 		} else {
+			#ifdef CONFIG_HQ_QGKI
+			qpnp_pon_set_restart_reason(PON_RESTART_REASON_NORMAL);
+			#endif
 			__raw_writel(0x77665501, restart_reason);
 		}
 
@@ -469,6 +477,11 @@ static void msm_restart_prepare(const char *cmd)
 		else
 			qpnp_pon_set_restart_reason(
 				(enum pon_restart_reason)reason);
+#ifdef CONFIG_HQ_QGKI
+	} else {
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_NORMAL);
+		__raw_writel(0x77665501, restart_reason);
+#endif
 	}
 
 	/*outer_flush_all is not supported by 64bit kernel*/
@@ -509,7 +522,7 @@ static int do_msm_restart(struct notifier_block *unused, unsigned long action,
 	return NOTIFY_DONE;
 }
 
-static void do_msm_poweroff(void)
+void do_msm_poweroff(void)
 {
 	pr_notice("Powering off the SoC\n");
 
@@ -521,6 +534,7 @@ static void do_msm_poweroff(void)
 	msleep(10000);
 	pr_err("Powering off has failed\n");
 }
+EXPORT_SYMBOL(do_msm_poweroff);
 
 static int msm_restart_probe(struct platform_device *pdev)
 {

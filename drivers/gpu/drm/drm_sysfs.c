@@ -238,16 +238,25 @@ static ssize_t modes_show(struct device *device,
 	return written;
 }
 
+static ssize_t panel_info_show(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, PAGE_SIZE,"panel_name=qcom,mdss_dsi_m17_38_0c_0a_fhdp_dsc_vid");
+}
+
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
+static DEVICE_ATTR_RO(panel_info);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_dpms.attr,
 	&dev_attr_modes.attr,
+	&dev_attr_panel_info.attr,
 	NULL
 };
 
