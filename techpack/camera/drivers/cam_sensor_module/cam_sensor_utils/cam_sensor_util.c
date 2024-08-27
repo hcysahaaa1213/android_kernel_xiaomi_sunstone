@@ -9,6 +9,10 @@
 #include "cam_sensor_util.h"
 #include "cam_mem_mgr.h"
 #include "cam_res_mgr_api.h"
+#include <misc/wl2866d.h>
+#include <linux/mutex.h>
+static int custom_gpio1_powernum;
+static DEFINE_MUTEX(custom_gpio1_powernum_mutex);
 
 #define CAM_SENSOR_PINCTRL_STATE_SLEEP "cam_suspend"
 #define CAM_SENSOR_PINCTRL_STATE_DEFAULT "cam_default"
@@ -2146,6 +2150,34 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_RESET:
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
+			if (no_gpio) {
+                                CAM_ERR(CAM_SENSOR, "request gpio failed");
+                                goto power_up_failed;
+                        }
+                        if (!gpio_num_info) {
+                                CAM_ERR(CAM_SENSOR, "Invalid gpio_num_info");
+                                goto power_up_failed;
+                        }
+                        CAM_INFO(CAM_SENSOR, "gpio set val %d",
+                                gpio_num_info->gpio_num
+                                [power_setting->seq_type]);
+			CAM_INFO(CAM_SENSOR, "custom gpio1 powernum after is %d",custom_gpio1_powernum);
+			if (power_setting->seq_type == SENSOR_CUSTOM_GPIO1){
+				mutex_lock(&custom_gpio1_powernum_mutex);
+				custom_gpio1_powernum++;
+				mutex_unlock(&custom_gpio1_powernum_mutex);
+			}
+			CAM_INFO(CAM_SENSOR, "custom gpio1 powernum before is %d",custom_gpio1_powernum);
+                        rc = msm_cam_sensor_handle_reg_gpio(
+                                power_setting->seq_type,
+                                gpio_num_info,
+                                (int) power_setting->config_val);
+                        if (rc < 0) {
+                                CAM_ERR(CAM_SENSOR,
+                                        "Error in handling VREG GPIO");
+                                goto power_up_failed;
+                        }
+                        break;
 		case SENSOR_CUSTOM_GPIO2:
 			if (no_gpio) {
 				CAM_ERR(CAM_SENSOR, "request gpio failed");
@@ -2232,6 +2264,13 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 				goto power_up_failed;
 			}
 			break;
+		case SENSOR_WL2866D_DVDD1:
+                case SENSOR_WL2866D_DVDD2:
+                case SENSOR_WL2866D_AVDD1:
+                case SENSOR_WL2866D_AVDD2:
+                        rc = wl2866d_camera_power_up(((int)power_setting->seq_type) - 14);
+                        if (rc != 0)
+                                CAM_ERR(CAM_SENSOR, "wl2866d type %d starting have a error",((int)power_setting->seq_type) - 14);
 		default:
 			CAM_ERR(CAM_SENSOR, "error power seq type %d",
 				power_setting->seq_type);
@@ -2427,6 +2466,26 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_RESET:
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
+			if (!gpio_num_info) {
+                                CAM_ERR(CAM_SENSOR, "failed: No gpio");
+                                continue;
+                        }
+                        if (!gpio_num_info->valid[pd->seq_type])
+                                continue;
+
+			CAM_INFO(CAM_SENSOR, "custom gpio1 powernum stop after is %d",custom_gpio1_powernum);
+                        if (power_setting->seq_type == SENSOR_CUSTOM_GPIO1){
+                                mutex_lock(&custom_gpio1_powernum_mutex);
+                                custom_gpio1_powernum--;
+                                mutex_unlock(&custom_gpio1_powernum_mutex);
+                        }
+                        CAM_INFO(CAM_SENSOR, "custom gpio1 powernum stop before is %d",custom_gpio1_powernum);
+			cam_res_mgr_gpio_set_value(
+                                gpio_num_info->gpio_num
+                                [pd->seq_type],
+                                (int) pd->config_val);
+
+                        break;
 		case SENSOR_CUSTOM_GPIO2:
 
 			if (!gpio_num_info) {
@@ -2499,6 +2558,13 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 				CAM_ERR(CAM_SENSOR,
 					"Error disabling VREG GPIO");
 			break;
+		case SENSOR_WL2866D_DVDD1:
+		case SENSOR_WL2866D_DVDD2:
+		case SENSOR_WL2866D_AVDD1:
+		case SENSOR_WL2866D_AVDD2:
+			ret = wl2866d_camera_power_down(((int)pd->seq_type) - 14);
+			if (ret != 0)
+				CAM_ERR(CAM_SENSOR, "wl2866d type %d stoping have a error",((int)pd->seq_type) - 14);
 		default:
 			CAM_ERR(CAM_SENSOR, "error power seq type %d",
 				pd->seq_type);
